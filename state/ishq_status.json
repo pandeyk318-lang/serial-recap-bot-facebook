@@ -1,12 +1,12 @@
 {
   "show": "ishq",
-  "status": "success",
-  "date_ist": "2026-11-15",
-  "timestamp_ist": "2026-11-15 00:51:46 IST",
-  "source_video_id": "Or6TyLcnpvg",
-  "source_episode": "252",
-  "target_episode": "254",
-  "youtube_video_id": "ju5KgUh1Us4",
+  "status": "no_new_episode",
+  "date_ist": "2026-11-16",
+  "timestamp_ist": "2026-11-16 00:22:38 IST",
+  "source_video_id": "",
+  "source_episode": "",
+  "target_episode": "",
+  "youtube_video_id": "",
   "error": "",
-  "log_tail": ""
+  "log_tail": "== Ishq Junooni | slot=16:00 IST | test=False | upload=True | publish_now=False\n1/7 find episode\n   uploads via RSS: 15\n   total uploads scanned (RSS + OAuth/API): 15\n   no new unseen full episode for this show right now\n"
 }
