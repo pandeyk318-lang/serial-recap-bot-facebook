@@ -264,5 +264,19 @@
     },
     "source_episode": "1788",
     "updated_at": "2026-11-14T19:13:07+00:00"
+  },
+  "ANG-jvFTMvM": {
+    "source_video_id": "ANG-jvFTMvM",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-15T18:50:37+00:00",
+        "media_id": "x_95bqm25rY",
+        "error": ""
+      }
+    },
+    "source_episode": "1789",
+    "updated_at": "2026-11-15T18:50:37+00:00"
   }
 }
