@@ -250,5 +250,19 @@
     },
     "source_episode": "66",
     "updated_at": "2026-11-14T18:59:15+00:00"
+  },
+  "F3Sw1oop-AI": {
+    "source_video_id": "F3Sw1oop-AI",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-16T18:58:16+00:00",
+        "media_id": "6chsPlKkk1c",
+        "error": ""
+      }
+    },
+    "source_episode": "67",
+    "updated_at": "2026-11-16T18:58:16+00:00"
   }
 }
