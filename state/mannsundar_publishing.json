@@ -278,5 +278,19 @@
     },
     "source_episode": "1789",
     "updated_at": "2026-11-15T18:50:37+00:00"
+  },
+  "7K-RJ4wum2k": {
+    "source_video_id": "7K-RJ4wum2k",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-16T19:15:17+00:00",
+        "media_id": "oNjPxQkWjTE",
+        "error": ""
+      }
+    },
+    "source_episode": "1790",
+    "updated_at": "2026-11-16T19:15:17+00:00"
   }
 }
