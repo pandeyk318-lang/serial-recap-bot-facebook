@@ -292,5 +292,19 @@
     },
     "source_episode": "1790",
     "updated_at": "2026-11-16T19:15:17+00:00"
+  },
+  "g4q26lBdpao": {
+    "source_video_id": "g4q26lBdpao",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-17T19:10:35+00:00",
+        "media_id": "q6_AEghfTZo",
+        "error": ""
+      }
+    },
+    "source_episode": "1791",
+    "updated_at": "2026-11-17T19:10:35+00:00"
   }
 }
