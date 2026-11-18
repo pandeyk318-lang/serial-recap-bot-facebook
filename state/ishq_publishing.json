@@ -250,5 +250,19 @@
     },
     "source_episode": "253",
     "updated_at": "2026-11-16T20:09:12+00:00"
+  },
+  "sEZmTjWEqUM": {
+    "source_video_id": "sEZmTjWEqUM",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-18T04:46:04+00:00",
+        "media_id": "Poktqk4PYko",
+        "error": ""
+      }
+    },
+    "source_episode": "254",
+    "updated_at": "2026-11-18T04:46:04+00:00"
   }
 }
