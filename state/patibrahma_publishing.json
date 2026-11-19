@@ -292,5 +292,19 @@
     },
     "source_episode": "471",
     "updated_at": "2026-11-19T04:37:40+00:00"
+  },
+  "NvpIoqixB6o": {
+    "source_video_id": "NvpIoqixB6o",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-19T19:47:16+00:00",
+        "media_id": "eZ3v_pZGyPU",
+        "error": ""
+      }
+    },
+    "source_episode": "472",
+    "updated_at": "2026-11-19T19:47:16+00:00"
   }
 }
