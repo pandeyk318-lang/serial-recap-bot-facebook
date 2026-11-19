@@ -278,5 +278,19 @@
     },
     "source_episode": "398",
     "updated_at": "2026-11-18T04:26:42+00:00"
+  },
+  "VCRNubpY23c": {
+    "source_video_id": "VCRNubpY23c",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-19T19:29:26+00:00",
+        "media_id": "fRhzB-jgByM",
+        "error": ""
+      }
+    },
+    "source_episode": "400",
+    "updated_at": "2026-11-19T19:29:26+00:00"
   }
 }
