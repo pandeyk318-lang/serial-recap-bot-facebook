@@ -1,12 +1,12 @@
 {
   "show": "saanche",
-  "status": "failed",
-  "date_ist": "2026-11-20",
-  "timestamp_ist": "2026-11-20 01:35:55 IST",
-  "source_video_id": "WK44QNHqJOw",
-  "source_episode": "16",
-  "target_episode": "18",
-  "youtube_video_id": "",
-  "error": "YouTube upload init failed: 400 {\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"The user has exceeded the number of videos they may upload.\",\n    \"errors\": [\n      {\n        \"message\": \"The user has exceeded the number of videos they may upload.\",\n        \"domain\": \"youtube.video\",\n        \"reason\": \"uploadLimitExceeded\"\n      }\n    ]\n  }\n}\n",
-  "log_tail": "  image ok via cloudflare (try 1)\n    image deepai try 1/1: DeepAIUnavailableError: DeepAI generation failed (TimeoutError); stopping further DeepAI attempts\n    image ok via cloudflare (try 1)\n    image deepai try 1/1: DeepAIUnavailableError: DeepAI generation failed (TimeoutError); stopping further DeepAI attempts\n    image ok via cloudflare (try 1)\n    image deepai try 1/1: DeepAIUnavailableError: DeepAI generation failed (TimeoutError); stopping further DeepAI attempts\n    image ok via cloudflare (try 1)\n5/7 render\n   hook: 6s\n   s0: 8s\n   s1: 10s\n   s2: 8s\n   s3: 9s\n   s4: 9s\n   s5: 9s\n   s6: 10s\n   s7: 9s\n   s8: 9s\n   s9: 10s\n   s10: 8s\n   cliff: 4s\n   pred: 17s\n   outro: 10s\n   music: automatic background music (shock) -> auto_ambient_shock.m4a\n6/7 thumbnail + metadata\n    thumbnail deepai try 1/1: DeepAIUnavailableError: DeepAI generation failed (TimeoutError); stopping further DeepAI attempts\n    thumbnail art ok via cloudflare (try 1)\n   title: Saanche Darbar Ki Jai Dhyanu Bhagat Ki Amar Kahani Ep 18 (21 Nov) | परसों की कहानी + अनुमान | स्रो | 10 tags\n7/7 upload\n   mode: scheduled for 2026-11-20 12:30 PM IST (07:00 UTC)\nFAILED: YouTube upload init failed: 400 {\n  \"error\": {\n    \"code\": 400,\n    \"message\": \"The user has exceeded the number of videos they may upload.\",\n    \"errors\": [\n      {\n        \"message\": \"The user has exceeded the number of videos they may upload.\",\n        \"domain\": \"youtube.video\",\n        \"reason\": \"uploadLimitExceeded\"\n      }\n    ]\n  }\n}\n\n"
+  "status": "success",
+  "date_ist": "2026-11-21",
+  "timestamp_ist": "2026-11-21 01:08:10 IST",
+  "source_video_id": "-aRG56oVSMU",
+  "source_episode": "17",
+  "target_episode": "19",
+  "youtube_video_id": "-IfRf8_Cjo0",
+  "error": "",
+  "log_tail": ""
 }

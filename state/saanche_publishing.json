@@ -68,5 +68,19 @@
     },
     "source_episode": "15",
     "updated_at": "2026-11-19T03:04:23+00:00"
+  },
+  "-aRG56oVSMU": {
+    "source_video_id": "-aRG56oVSMU",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-20T19:38:10+00:00",
+        "media_id": "-IfRf8_Cjo0",
+        "error": ""
+      }
+    },
+    "source_episode": "17",
+    "updated_at": "2026-11-20T19:38:10+00:00"
   }
 }
