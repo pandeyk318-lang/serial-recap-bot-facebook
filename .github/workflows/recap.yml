@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       validate_facebook_tokens:
-        description: "Read-only check of Facebook Page and user tokens"
+        description: "Read-only check of Facebook Page ID and Page access token"
         type: boolean
         default: false
       only_show:
@@ -84,10 +84,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           HF_FLUX_SPACE: ${{ vars.HF_FLUX_SPACE || 'https://black-forest-labs-flux-1-schnell.hf.space' }}
           FACEBOOK_ENABLED: ${{ vars.FACEBOOK_ENABLED || 'false' }}
-          FACEBOOK_PAGE_ID: ${{ vars.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
-          META_APP_ID: ${{ vars.META_APP_ID }}
-          META_USER_ACCESS_TOKEN: ${{ secrets.META_USER_ACCESS_TOKEN }}
           META_GRAPH_API_VERSION: ${{ vars.META_GRAPH_API_VERSION || 'v26.0' }}
           FACEBOOK_DESCRIPTION: ${{ vars.FACEBOOK_DESCRIPTION }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
@@ -146,12 +144,10 @@ jobs:
     runs-on: ubuntu-24.04
     permissions: {}
     steps:
-      - name: Check Facebook Page and user credentials without publishing
+      - name: Check Facebook Page credentials without publishing
         env:
-          FACEBOOK_PAGE_ID: ${{ vars.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
-          META_APP_ID: ${{ vars.META_APP_ID }}
-          META_USER_ACCESS_TOKEN: ${{ secrets.META_USER_ACCESS_TOKEN }}
           META_GRAPH_API_VERSION: ${{ vars.META_GRAPH_API_VERSION || 'v26.0' }}
         run: |
           python - <<'PY'
@@ -164,13 +160,9 @@ jobs:
           version = os.environ["META_GRAPH_API_VERSION"]
           checks = [
               ("Facebook Page token", os.environ.get("FACEBOOK_PAGE_ID", ""),
-               os.environ.get("FACEBOOK_PAGE_ACCESS_TOKEN", ""), "name"),
-              ("Facebook user token", "me",
-               os.environ.get("META_USER_ACCESS_TOKEN", ""), "id"),
+               os.environ.get("FACEBOOK_PAGE_ACCESS_TOKEN", ""), "id,name"),
           ]
-          failed = not os.environ.get("META_APP_ID", "")
-          if failed:
-              print("Meta app ID: NOT CONFIGURED")
+          failed = False
           for label, account_id, token, field in checks:
               if not account_id or not token:
                   print(f"{label}: NOT CONFIGURED (account ID or token secret is missing)")
@@ -183,11 +175,8 @@ jobs:
               try:
                   with urllib.request.urlopen(request, timeout=30) as response:
                       result = json.loads(response.read())
-                  if account_id != "me" and str(result.get("id")) != account_id:
+                  if str(result.get("id")) != account_id:
                       print(f"{label}: FAILED (returned account ID did not match configured ID)")
-                      failed = True
-                  elif account_id == "me" and not result.get("id"):
-                      print(f"{label}: FAILED (Meta did not return a user ID)")
                       failed = True
                   else:
                       print(f"{label}: VALID (read access confirmed)")

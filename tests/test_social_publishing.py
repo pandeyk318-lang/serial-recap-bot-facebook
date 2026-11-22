@@ -53,14 +53,21 @@ class PublishingStateTests(unittest.TestCase):
 
 
 class FacebookPublisherTests(unittest.TestCase):
-    def test_resumable_upload_handle_is_published_to_configured_page(self):
+    def test_page_token_only_resumable_upload_publishes_to_configured_page(self):
         with tempfile.TemporaryDirectory() as folder:
             video_path = Path(folder) / "landscape.mp4"
             video_path.write_bytes(b"synthetic-video")
+            thumbnail_path = Path(folder) / "cover.jpg"
+            thumbnail_path.write_bytes(b"synthetic-thumbnail")
             responses = [
-                FakeResponse({"id": "upload:session-1"}),
-                FakeResponse({"h": "uploaded-handle"}),
-                FakeResponse({"id": "page-video-1"}),
+                FakeResponse({
+                    "upload_session_id": "session-1",
+                    "video_id": "page-video-1",
+                    "start_offset": "0",
+                    "end_offset": "15",
+                }),
+                FakeResponse({"start_offset": "15", "end_offset": "15"}),
+                FakeResponse({"success": True, "video_id": "page-video-1"}),
             ]
             with mock.patch.object(facebook.requests, "post", side_effect=responses) as post:
                 video_id = facebook.publish_video(
@@ -69,18 +76,20 @@ class FacebookPublisherTests(unittest.TestCase):
                     description="Description",
                     page_id="page-1",
                     page_token="page-token",
-                    app_id="app-1",
-                    user_token="user-token",
+                    thumbnail_path=str(thumbnail_path),
                     version="v26.0",
                 )
 
         self.assertEqual(video_id, "page-video-1")
-        self.assertTrue(post.call_args_list[0].args[0].endswith("/v26.0/app-1/uploads"))
-        self.assertEqual(post.call_args_list[0].kwargs["params"]["file_length"], "15")
-        self.assertEqual(post.call_args_list[1].kwargs["headers"]["file_offset"], "0")
-        self.assertEqual(post.call_args_list[2].args[0], "https://graph-video.facebook.com/v26.0/page-1/videos")
-        self.assertEqual(post.call_args_list[2].kwargs["data"]["fbuploader_video_file_chunk"], "uploaded-handle")
+        endpoint = "https://graph-video.facebook.com/v26.0/page-1/videos"
+        self.assertTrue(all(call.args[0] == endpoint for call in post.call_args_list))
+        self.assertEqual(post.call_args_list[0].kwargs["data"]["upload_phase"], "start")
+        self.assertEqual(post.call_args_list[0].kwargs["data"]["file_size"], "15")
+        self.assertEqual(post.call_args_list[1].kwargs["data"]["upload_phase"], "transfer")
+        self.assertEqual(post.call_args_list[1].kwargs["files"]["video_file_chunk"][1], b"synthetic-video")
+        self.assertEqual(post.call_args_list[2].kwargs["data"]["upload_phase"], "finish")
         self.assertEqual(post.call_args_list[2].kwargs["data"]["access_token"], "page-token")
+        self.assertEqual(post.call_args_list[2].kwargs["files"]["thumb"][0], "thumb.jpg")
 
     def test_api_error_redacts_access_tokens(self):
         response = FakeResponse({"error": {"message": "bad token secret-value"}}, status_code=400)
@@ -88,30 +97,25 @@ class FacebookPublisherTests(unittest.TestCase):
             facebook._json(response, ("secret-value",))
         self.assertNotIn("secret-value", str(raised.exception))
 
-    def test_transient_chunk_failure_resumes_at_verified_offset(self):
+    def test_no_progress_during_transfer_fails_explicitly(self):
         with tempfile.TemporaryDirectory() as folder:
             video_path = Path(folder) / "landscape.mp4"
             video_path.write_bytes(b"synthetic-video")
-            responses = [
-                FakeResponse({"id": "upload:session-2"}),
-                FakeResponse({"error": {"message": "temporary failure"}}, status_code=500),
-                FakeResponse({"h": "resumed-handle"}),
-                FakeResponse({"id": "page-video-2"}),
-            ]
-            with mock.patch.object(facebook.requests, "post", side_effect=responses) as post, \
-                    mock.patch.object(facebook.requests, "get", return_value=FakeResponse({"file_offset": 0})) as get, \
-                    mock.patch.object(facebook.time, "sleep"):
-                video_id = facebook.publish_video(
-                    str(video_path), page_id="page-1", page_token="page-token",
-                    app_id="app-1", user_token="user-token",
-                )
-        self.assertEqual(video_id, "page-video-2")
-        self.assertEqual(get.call_count, 1)
-        self.assertEqual(post.call_args_list[2].kwargs["headers"]["file_offset"], "0")
+            with mock.patch.object(facebook.requests, "post", side_effect=[
+                FakeResponse({
+                    "upload_session_id": "session-2",
+                    "video_id": "page-video-2",
+                    "start_offset": "0",
+                    "end_offset": "15",
+                }),
+                FakeResponse({"start_offset": "0", "end_offset": "15"}),
+            ]):
+                with self.assertRaisesRegex(facebook.FacebookPublishError, "made no progress"):
+                    facebook.publish_video(str(video_path), page_id="page-1", page_token="page-token")
 
     def test_missing_credentials_and_video_are_reported(self):
-        with self.assertRaisesRegex(facebook.FacebookPublishError, "META_USER_ACCESS_TOKEN"):
-            facebook.publish_video("missing.mp4", page_id="page", page_token="token", app_id="app", user_token="")
+        with self.assertRaisesRegex(facebook.FacebookPublishError, "FACEBOOK_PAGE_ACCESS_TOKEN"):
+            facebook.publish_video("missing.mp4", page_id="page", page_token="")
 
 
 if __name__ == "__main__":

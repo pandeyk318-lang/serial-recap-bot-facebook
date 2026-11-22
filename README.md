@@ -36,8 +36,6 @@ Add these **repository variables**:
 | Variable | Value |
 | --- | --- |
 | `FACEBOOK_ENABLED` | `true` after the test succeeds; leave unset/`false` to prevent publishing |
-| `FACEBOOK_PAGE_ID` | Numeric ID of the destination Page |
-| `META_APP_ID` | Meta developer app ID |
 | `META_GRAPH_API_VERSION` | Optional; defaults to `v26.0` |
 | `FACEBOOK_DESCRIPTION` | Optional description override; supports `{title}`, `{description}`, `{show}`, `{episode}`, `{hook}` |
 | `HF_FLUX_SPACE` | Optional image-generation fallback override |
@@ -50,8 +48,8 @@ Add these **repository secrets**:
 | Secret | Purpose |
 | --- | --- |
 | `GEMINI_API_KEY` | Episode analysis and Hindi script |
+| `FACEBOOK_PAGE_ID` | Numeric ID of the destination Page |
 | `FACEBOOK_PAGE_ACCESS_TOKEN` | Publishes video posts to the Page |
-| `META_USER_ACCESS_TOKEN` | Starts Meta's resumable video upload |
 | `CLOUDFLARE_ACCOUNT_ID` | Optional illustration-generation fallback |
 | `CLOUDFLARE_API_TOKEN` | Optional illustration-generation fallback |
 | `POLLINATIONS_TOKEN` | Optional image-generation fallback |
@@ -60,13 +58,13 @@ Never commit access tokens or put them in repository variables. `.env.example` c
 
 ## 2. Configure Facebook / Meta
 
-1. In Meta for Developers, create or select an app and configure Facebook Login for Business and Facebook Page video publishing.
+1. In Meta for Developers, create or select an app and configure Facebook Page video publishing.
 2. Use a Page where the authorizing person has permission to create Page content. Grant the required Page access, including `pages_show_list`, `pages_read_engagement`, and `pages_manage_posts` as requested by the current Meta authorization flow.
-3. Obtain the Page ID, Page access token, Meta app ID, and user access token. The Page and user tokens are separate.
-4. Put the IDs in repository variables and tokens in repository secrets as listed above. Follow Meta's token renewal guidance and renew tokens before expiration.
+3. Obtain the Page ID and a Page access token with permission to publish Page videos.
+4. Add only `FACEBOOK_PAGE_ID` and `FACEBOOK_PAGE_ACCESS_TOKEN` as repository secrets. Follow Meta's token renewal guidance and renew the Page token before expiration.
 5. In **Actions → Facebook serial recaps → Run workflow**, select `validate_facebook_tokens` and run it. This is read-only and does not publish.
 
-The Facebook publisher uses Meta's resumable video upload and Page video endpoint. Failures are recorded per episode. Definite failures may be retried; uncertain upload outcomes are not blindly retried to avoid duplicate posts. Check the Page before manually retrying an uncertain result.
+The Facebook publisher uses Meta's three-phase resumable video upload and Page video endpoint, authenticated only with `FACEBOOK_PAGE_ID` and `FACEBOOK_PAGE_ACCESS_TOKEN`. Failures are recorded per episode. Definite failures may be retried; uncertain upload outcomes are not blindly retried to avoid duplicate posts. Check the Page before manually retrying an uncertain result.
 
 ## 3. Test before enabling automatic publishing
 

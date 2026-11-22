@@ -1,14 +1,12 @@
-"""Facebook Page video publishing through Meta's resumable upload API."""
+"""Facebook Page video publishing with a Page ID and Page access token."""
 import os
 import re
-import time
 
 import requests
 
 import config as S
 
-GRAPH = "https://graph.facebook.com"
-VIDEO_GRAPH = "https://graph-video.facebook.com"
+GRAPH_VIDEO = "https://graph-video.facebook.com"
 
 
 class FacebookPublishError(RuntimeError):
@@ -52,131 +50,114 @@ def _json(response, secrets, *, uncertain_on_server_error=False):
     return body
 
 
-def _offset(session_id, user_token, version):
-    response = requests.get(
-        f"{GRAPH}/{version}/{session_id}",
-        headers={"Authorization": f"OAuth {user_token}"},
-        timeout=(15, 60),
-    )
-    body = _json(response, (user_token,))
+def _offsets(body, size):
     try:
-        return int(body["file_offset"])
+        start = int(body["start_offset"])
+        end = int(body["end_offset"])
     except (KeyError, TypeError, ValueError) as exc:
-        raise FacebookPublishError("Meta upload status did not include a valid file_offset") from exc
-
-
-def _upload_file(session_id, path, user_token, version):
-    size = os.path.getsize(path)
-    offset = 0
-    for attempt in range(4):
-        try:
-            with open(path, "rb") as video:
-                video.seek(offset)
-                response = requests.post(
-                    f"{GRAPH}/{version}/{session_id}",
-                    headers={
-                        "Authorization": f"OAuth {user_token}",
-                        "file_offset": str(offset),
-                        "Content-Type": "application/octet-stream",
-                    },
-                    data=video,
-                    timeout=(30, 1800),
-                )
-            body = _json(response, (user_token,))
-            if not body.get("h"):
-                raise FacebookPublishError("Meta upload completed without a video file handle")
-            return body["h"]
-        except FacebookPublishError as exc:
-            if exc.status_code not in (429,) and exc.status_code < 500:
-                raise
-            try:
-                offset = _offset(session_id, user_token, version)
-            except (requests.Timeout, requests.ConnectionError):
-                if attempt == 3:
-                    raise FacebookPublishError("Could not verify Facebook upload progress after a transient error",
-                                               uncertain=True) from exc
-                time.sleep(2 ** attempt)
-                continue
-            if offset >= size:
-                raise FacebookPublishError("Facebook upload reached the end without returning its file handle",
-                                           uncertain=True) from exc
-            if attempt == 3:
-                raise FacebookPublishError(f"Facebook upload did not complete; verified offset {offset} of {size}") from exc
-            time.sleep(2 ** attempt)
-        except (requests.Timeout, requests.ConnectionError):
-            try:
-                offset = _offset(session_id, user_token, version)
-            except (requests.Timeout, requests.ConnectionError):
-                if attempt == 3:
-                    raise FacebookPublishError("Could not verify Facebook upload progress after a timeout", uncertain=True)
-                time.sleep(2 ** attempt)
-                continue
-            if offset >= size:
-                raise FacebookPublishError("Facebook upload reached the end but did not return a file handle", uncertain=True)
-            if attempt == 3:
-                raise FacebookPublishError(f"Facebook upload did not complete; verified offset {offset} of {size}")
-            time.sleep(2 ** attempt)
-    raise FacebookPublishError("Facebook resumable upload exhausted retries")
+        raise FacebookPublishError("Meta returned invalid resumable upload offsets") from exc
+    if start < 0 or end < start or end > size:
+        raise FacebookPublishError("Meta returned out-of-range resumable upload offsets")
+    return start, end
 
 
 def publish_video(path, *, title="", description="", page_id=None, page_token=None,
-                  app_id=None, user_token=None, version=None):
-    page_id = page_id or os.getenv("FACEBOOK_PAGE_ID", "")
-    page_token = page_token or os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "")
-    app_id = app_id or os.getenv("META_APP_ID", "")
-    user_token = user_token or os.getenv("META_USER_ACCESS_TOKEN", "")
+                  thumbnail_path=None, version=None):
+    page_id = page_id or os.getenv("FACEBOOK_PAGE_ID", "").strip()
+    page_token = page_token or os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "").strip()
     version = version or S.META_GRAPH_API_VERSION
     if not re.fullmatch(r"v\d+\.\d+", version):
         raise FacebookPublishError("META_GRAPH_API_VERSION must look like v26.0")
-    missing = [name for name, value in (
-        ("FACEBOOK_PAGE_ID", page_id),
-        ("FACEBOOK_PAGE_ACCESS_TOKEN", page_token),
-        ("META_APP_ID", app_id),
-        ("META_USER_ACCESS_TOKEN", user_token),
-    ) if not value]
+    missing = [
+        name for name, value in (
+            ("FACEBOOK_PAGE_ID", page_id),
+            ("FACEBOOK_PAGE_ACCESS_TOKEN", page_token),
+        ) if not value
+    ]
     if missing:
         raise FacebookPublishError("Missing required Facebook configuration: " + ", ".join(missing))
     if not os.path.isfile(path) or os.path.getsize(path) == 0:
         raise FacebookPublishError(f"Facebook video file is missing or empty: {path}")
+    if thumbnail_path and (not os.path.isfile(thumbnail_path) or os.path.getsize(thumbnail_path) == 0):
+        raise FacebookPublishError(f"Facebook thumbnail file is missing or empty: {thumbnail_path}")
 
-    secrets = (page_token, user_token)
+    secrets = (page_token,)
     size = os.path.getsize(path)
+    endpoint = f"{GRAPH_VIDEO}/{version}/{page_id}/videos"
     try:
-        start = requests.post(
-            f"{GRAPH}/{version}/{app_id}/uploads",
-            params={
-                "file_name": os.path.basename(path),
-                "file_length": str(size),
-                "file_type": "video/mp4",
-                "access_token": user_token,
+        start_response = requests.post(
+            endpoint,
+            data={
+                "upload_phase": "start",
+                "file_size": str(size),
+                "access_token": page_token,
             },
             timeout=(15, 60),
         )
     except (requests.Timeout, requests.ConnectionError) as exc:
-        raise FacebookPublishError("Facebook upload-session creation timed out; check for an existing upload before retrying",
-                                   uncertain=True) from exc
-    start_body = _json(start, secrets)
-    session_id = start_body.get("id")
-    if not isinstance(session_id, str) or not session_id.startswith("upload:"):
-        raise FacebookPublishError("Meta did not return a valid resumable upload session ID")
+        raise FacebookPublishError("Facebook upload session could not be started") from exc
+    start = _json(start_response, secrets)
+    session_id = start.get("upload_session_id")
+    video_id = start.get("video_id")
+    if not session_id or not video_id:
+        raise FacebookPublishError("Meta did not return an upload session and video ID")
+    start_offset, end_offset = _offsets(start, size)
 
-    handle = _upload_file(session_id, path, user_token, version)
+    with open(path, "rb") as video:
+        while start_offset < end_offset:
+            video.seek(start_offset)
+            chunk = video.read(end_offset - start_offset)
+            if not chunk:
+                raise FacebookPublishError("Could not read the next Facebook upload chunk")
+            try:
+                transfer_response = requests.post(
+                    endpoint,
+                    data={
+                        "upload_phase": "transfer",
+                        "upload_session_id": session_id,
+                        "start_offset": str(start_offset),
+                        "access_token": page_token,
+                    },
+                    files={"video_file_chunk": ("chunk.mp4", chunk, "application/octet-stream")},
+                    timeout=(30, 600),
+                )
+            except (requests.Timeout, requests.ConnectionError) as exc:
+                raise FacebookPublishError("Facebook upload chunk transfer failed") from exc
+            transfer = _json(transfer_response, secrets)
+            next_start, next_end = _offsets(transfer, size)
+            if next_start <= start_offset:
+                raise FacebookPublishError("Facebook upload made no progress")
+            start_offset, end_offset = next_start, next_end
+
+    finish_data = {
+        "upload_phase": "finish",
+        "upload_session_id": session_id,
+        "title": title[:250],
+        "description": description,
+        "published": "true",
+        "access_token": page_token,
+    }
+    files = None
+    if thumbnail_path:
+        thumbnail = open(thumbnail_path, "rb")
+        files = {"thumb": ("thumb.jpg", thumbnail, "image/jpeg")}
     try:
-        result = requests.post(
-            f"{VIDEO_GRAPH}/{version}/{page_id}/videos",
-            data={
-                "access_token": page_token,
-                "title": title,
-                "description": description,
-                "fbuploader_video_file_chunk": handle,
-            },
+        finish_response = requests.post(
+            endpoint,
+            data=finish_data,
+            files=files,
             timeout=(15, 180),
         )
     except (requests.Timeout, requests.ConnectionError) as exc:
-        raise FacebookPublishError("Facebook publish request timed out; the video may already be published",
-                                   uncertain=True) from exc
-    body = _json(result, secrets, uncertain_on_server_error=True)
-    video_id = body.get("id")
-    if not video_id:
-        raise FacebookPublishError("Facebook publish response did not include a video ID")
-    return video_id
+        raise FacebookPublishError(
+            "Facebook publish request timed out; the video may already be published",
+            uncertain=True,
+        ) from exc
+    finally:
+        if files:
+            thumbnail.close()
+
+    result = _json(finish_response, secrets, uncertain_on_server_error=True)
+    if result.get("success") is False:
+        raise FacebookPublishError("Facebook did not confirm the video publish")
+    return str(result.get("video_id") or video_id)

@@ -217,6 +217,7 @@ try:
                     name + ".mp4",
                     title=title,
                     description=platform_caption("FACEBOOK_DESCRIPTION", desc),
+                    thumbnail_path=thumb,
                 )
                 publishing_state.update(KEY, ep["id"], "facebook", "success", episode=SOURCE_EP_NO, media_id=fb_id)
                 feed.mark_done(KEY, ep["id"], episode_no=SOURCE_EP_NO, target_ep=EP_NO)
