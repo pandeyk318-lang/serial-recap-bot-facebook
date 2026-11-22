@@ -320,5 +320,19 @@
     },
     "source_episode": "473",
     "updated_at": "2026-11-20T19:25:51+00:00"
+  },
+  "ulSziMWgHYE": {
+    "source_video_id": "ulSziMWgHYE",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-22T03:00:10+00:00",
+        "media_id": "xZrZU6FO0dU",
+        "error": ""
+      }
+    },
+    "source_episode": "474",
+    "updated_at": "2026-11-22T03:00:10+00:00"
   }
 }
