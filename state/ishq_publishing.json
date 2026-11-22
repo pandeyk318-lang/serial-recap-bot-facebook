@@ -292,5 +292,19 @@
     },
     "source_episode": "257",
     "updated_at": "2026-11-21T01:15:59+00:00"
+  },
+  "PFgsnmQv8cg": {
+    "source_video_id": "PFgsnmQv8cg",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-22T02:21:23+00:00",
+        "media_id": "V5DA45oVSy4",
+        "error": ""
+      }
+    },
+    "source_episode": "258",
+    "updated_at": "2026-11-22T02:21:23+00:00"
   }
 }
