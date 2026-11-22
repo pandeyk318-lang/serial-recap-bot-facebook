@@ -82,5 +82,19 @@
     },
     "source_episode": "17",
     "updated_at": "2026-11-20T19:38:10+00:00"
+  },
+  "SKIdyd4JQE8": {
+    "source_video_id": "SKIdyd4JQE8",
+    "platforms": {
+      "youtube": {
+        "status": "success",
+        "attempts": 0,
+        "updated_at": "2026-11-22T02:21:41+00:00",
+        "media_id": "h_U1ewYoiJs",
+        "error": ""
+      }
+    },
+    "source_episode": "18",
+    "updated_at": "2026-11-22T02:21:41+00:00"
   }
 }
