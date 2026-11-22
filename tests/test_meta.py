@@ -18,12 +18,12 @@ class VideoDescriptionTests(unittest.TestCase):
         self.assertTrue(feed._is_full_episode(title))
         self.assertEqual(feed.parse_title(title), ("11", "13 Nov 2026"))
 
-    def test_saanche_darbar_uses_requested_ist_slot(self):
+    def test_saanche_darbar_configuration_is_available(self):
         show = config.SHOWS["saanche"]
 
         self.assertEqual(show["en"], "Saanche Darbar Ki Jai Dhyanu Bhagat Ki Amar Kahani")
-        self.assertEqual(show["slot"], (12, 30))
         self.assertIn("saanche darbar ki jai dhyanu bhagat ki amar kahani", show["match"])
+        self.assertNotIn("slot", show)
 
     def test_description_includes_dynamic_show_episode_and_date(self):
         show = config.SHOWS["rimjhim"]

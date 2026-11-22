@@ -3,7 +3,7 @@ try:
     import feedparser
 except ImportError:
     feedparser = None
-import config as S, youtube
+import config as S
 import publishing_state
 UA = {"User-Agent": "Mozilla/5.0 (compatible; SerialRecapBot/1.0)"}
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
@@ -24,7 +24,7 @@ def is_done(key, vid, episode_no=None):
         return True
     return False
 
-def mark_done(key, vid, episode_no=None, target_ep=None, yt_id=None):
+def mark_done(key, vid, episode_no=None, target_ep=None):
     """Record both video_id and episode_no so re-uploads or retries never process the same episode twice."""
     os.makedirs(os.path.join(S.BASE, "state"), exist_ok=True)
     tokens = {vid} if vid else set()
@@ -34,21 +34,20 @@ def mark_done(key, vid, episode_no=None, target_ep=None, yt_id=None):
         tokens.add(f"target_ep:{str(target_ep).strip()}")
     ids = sorted(done_ids(key) | tokens)
     json.dump(ids[-120:], open(_state(key), "w"), indent=2)
-    record_status(key, "success", vid=vid, episode=episode_no, target_ep=target_ep, yt_id=yt_id)
+    record_status(key, "success", vid=vid, episode=episode_no, target_ep=target_ep)
 
-def record_status(key, status, vid="", episode="", target_ep="", yt_id="", error="", log_tail=""):
+def record_status(key, status, vid="", episode="", target_ep="", error="", log_tail=""):
     """Write structured execution status and log summary for scheduler diagnostics."""
     os.makedirs(os.path.join(S.BASE, "state"), exist_ok=True)
     now_ist = dt.datetime.now(IST)
     payload = {
         "show": key,
-        "status": status,  # "running" | "success" | "failed" | "no_new_episode" | "already_uploaded"
+        "status": status,  # "running" | "success" | "failed" | "no_new_episode" | "already_published"
         "date_ist": now_ist.strftime("%Y-%m-%d"),
         "timestamp_ist": now_ist.strftime("%Y-%m-%d %H:%M:%S IST"),
         "source_video_id": vid or "",
         "source_episode": str(episode or ""),
         "target_episode": str(target_ep or ""),
-        "youtube_video_id": yt_id or "",
         "error": str(error or "")[:500],
         "log_tail": str(log_tail or "")[-1500:],
     }
@@ -61,10 +60,8 @@ def get_status(key):
     try: return json.load(open(_status_file(key)))
     except Exception: return {}
 
-def recent_uploads(max_pages=3):
-    """Latest uploads of the channel.
-    1. Uses RSS feed first or YouTube Data API (via YT_API_KEY or existing YouTube OAuth token—no extra key needed!).
-    2. Combines API + RSS results so even if Dangal TV posts Shorts/promos after 7-10:30 PM, no full episode is missed."""
+def recent_uploads():
+    """Read recent source episodes from the public YouTube channel RSS feed."""
     out, seen_ids = [], set()
     # 1. Fast RSS feed check (always 100% free, zero quota, works immediately for evening uploads)
     try:
@@ -90,36 +87,6 @@ def recent_uploads(max_pages=3):
     except Exception as e:
         print("   RSS warning:", str(e)[:100])
 
-    # 2. Also query playlistItems via OAuth token (or YT_API_KEY if set) so Shorts/promos never push episodes out of the 15-item RSS window
-    key = os.getenv("YT_API_KEY")
-    hdr = {}
-    if not key and youtube.enabled():
-        try:
-            hdr = {"Authorization": f"Bearer {youtube._token()}"}
-        except Exception:
-            hdr = {}
-    if key or hdr:
-        try:
-            page_token = None
-            for _ in range(max_pages):
-                params = {"part": "snippet", "playlistId": S.UPLOADS_PLAYLIST, "maxResults": 50}
-                if key:
-                    params["key"] = key
-                if page_token:
-                    params["pageToken"] = page_token
-                r = requests.get("https://www.googleapis.com/youtube/v3/playlistItems", headers=hdr, params=params, timeout=30).json()
-                for it in r.get("items", []):
-                    sn = it.get("snippet", {})
-                    vid = sn.get("resourceId", {}).get("videoId")
-                    if vid and vid not in seen_ids:
-                        seen_ids.add(vid)
-                        out.append({"id": vid, "title": sn.get("title", ""), "published": sn.get("publishedAt", "")})
-                page_token = r.get("nextPageToken")
-                if not page_token:
-                    break
-            print(f"   total uploads scanned (RSS + OAuth/API): {len(out)}")
-        except Exception as e:
-            print("   API/OAuth scan warning:", str(e)[:100])
     return out
 
 def _norm(s):
@@ -173,12 +140,9 @@ def by_id(video_id):
 
 def find_pending_social(key):
     """Return the newest episode whose enabled social destination had a definite failed attempt."""
-    platforms = []
-    if S.FACEBOOK_ENABLED: platforms.append("facebook")
-    if S.INSTAGRAM_ENABLED: platforms.append("instagram")
-    if not platforms:
+    if not S.FACEBOOK_ENABLED:
         return None
-    video_id = publishing_state.failed_platforms(key, platforms)
+    video_id = publishing_state.failed_platforms(key, ["facebook"])
     if not video_id:
         return None
     try:

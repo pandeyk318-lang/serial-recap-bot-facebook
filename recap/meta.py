@@ -33,7 +33,7 @@ def make_tags(show, ep, date_, kws, limit=480):
 def mmss(s): return f"{int(s) // 60:02d}:{int(s) % 60:02d}"
 
 def chapters(starts):
-    """starts: [(seconds, title)]. YouTube needs a 00:00 start and >=10 s between chapters."""
+    """Format video chapter timestamps, requiring a 00:00 start and 10-second spacing."""
     out, last = [], -99
     for t, name in starts:
         if not out or t - last >= 10: out.append((t, name)); last = t

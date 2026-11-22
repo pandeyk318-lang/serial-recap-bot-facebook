@@ -1,6 +1,6 @@
 import datetime as dt, io, json, os, shutil, sys, time, traceback, zlib
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
-import config as S, feed, gemini, images, voice, render, meta, youtube, vertical, facebook, instagram, publishing_state
+import config as S, feed, gemini, images, voice, render, meta, facebook, publishing_state
 from PIL import Image
 
 # Capture console logs in memory so any failure writes its exact log tail to state/<show>_status.json
@@ -17,21 +17,15 @@ sys.stderr = _Tee(sys.stderr)
 KEY = os.environ["SHOW_KEY"]; show = S.SHOWS[KEY]
 TEST = os.getenv("TEST_MODE", "").lower() == "true"
 VIDEO_ID = os.getenv("VIDEO_ID", "").strip()
-event = os.getenv("EVENT_NAME", "")
-# Default publish_now to False so scheduled/cron runs always schedule for the show's 9 AM - 4 PM IST slot
-publish_now = os.getenv("PUBLISH_NOW", "false").lower() == "true"
 publish_requested = (not TEST) and os.getenv("DO_UPLOAD", "true").lower() != "false"
-do_upload = publish_requested and youtube.enabled()
-social_platforms = []
-if S.FACEBOOK_ENABLED: social_platforms.append("facebook")
-if S.INSTAGRAM_ENABLED: social_platforms.append("instagram")
+do_publish_facebook = publish_requested and S.FACEBOOK_ENABLED
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 tmp = os.path.join(S.BASE, f"tmp_{KEY}"); out_dir = os.path.join(S.BASE, "output"); os.makedirs(tmp, exist_ok=True); os.makedirs(out_dir, exist_ok=True)
 
 SOURCE_EP_NO, EP_NO, ep = "", "", None
 
 try:
-    print(f"== {show['en']} | slot={show['slot'][0]:02d}:{show['slot'][1]:02d} IST | test={TEST} | upload={do_upload} | publish_now={publish_now}")
+    print(f"== {show['en']} | Facebook publishing={do_publish_facebook} | test={TEST}")
     feed.record_status(KEY, "running", log_tail=_LOG_BUF.getvalue())
 
     print("1/7 find episode")
@@ -62,27 +56,16 @@ try:
     EP_NO, DATE = next_target(SOURCE_EP_NO, SOURCE_DATE)
     print(f"  source episode/date: {SOURCE_EP_NO} / {SOURCE_DATE}; two-day target: {EP_NO} / {DATE}")
 
-    # Anti-duplicate check #1: verify state and live YouTube channel before spending time generating video
+    # Avoid regenerating an episode already completed or published to Facebook.
     if not VIDEO_ID and not retrying_social and feed.is_done(KEY, ep["id"], SOURCE_EP_NO):
         print(f"   episode {SOURCE_EP_NO} ({ep['id']}) already marked done in state; skipping")
-        feed.record_status(KEY, "already_uploaded", vid=ep["id"], episode=SOURCE_EP_NO, target_ep=EP_NO, log_tail=_LOG_BUF.getvalue())
+        feed.record_status(KEY, "already_published", vid=ep["id"], episode=SOURCE_EP_NO, target_ep=EP_NO, log_tail=_LOG_BUF.getvalue())
         sys.exit(0)
-    yt_record = publishing_state.get_entry(KEY, ep["id"]).get("platforms", {}).get("youtube", {})
-    known_yt_id = yt_record.get("media_id", "") if yt_record.get("status") == "success" else ""
-    yt_previously_published = bool(known_yt_id)
-    if do_upload and not yt_previously_published:
-        existing_yt = youtube.already_uploaded(show, EP_NO, source_vid=ep["id"])
-        if existing_yt:
-            yt_previously_published = True
-            publishing_state.update(KEY, ep["id"], "youtube", "success", episode=SOURCE_EP_NO, media_id=existing_yt)
-            if retrying_social or social_platforms:
-                known_yt_id = existing_yt
-                feed.mark_done(KEY, ep["id"], episode_no=SOURCE_EP_NO, target_ep=EP_NO, yt_id=existing_yt)
-                print(f"   YouTube upload already exists ({existing_yt}); continuing with other destinations")
-            else:
-                print(f"   episode already uploaded on YouTube (https://youtube.com/watch?v={existing_yt}); marking state done and skipping")
-                feed.mark_done(KEY, ep["id"], episode_no=SOURCE_EP_NO, target_ep=EP_NO, yt_id=existing_yt)
-                sys.exit(0)
+    if not VIDEO_ID and not retrying_social and do_publish_facebook:
+        if publishing_state.platform_status(KEY, ep["id"], "facebook") == "success":
+            feed.mark_done(KEY, ep["id"], episode_no=SOURCE_EP_NO, target_ep=EP_NO)
+            print("   Facebook publishing already succeeded for this episode; skipping duplicate")
+            sys.exit(0)
 
     def hindi_date(d):   # on-screen text must be Devanagari (the font has no Latin letters)
         import re
@@ -171,26 +154,10 @@ try:
     print(f"   music: automatic background music ({main_emo}) -> {os.path.basename(music)}")
     render.concat(files, tmp, name + ".mp4", music, t0, emotion=main_emo)
 
-    vertical_path = name + "_vertical.mp4"
-    vertical_error = ""
-    should_render_vertical = S.RENDER_VERTICAL or (publish_requested and S.INSTAGRAM_ENABLED)
-    if should_render_vertical:
-        vertical_images = [
-            raws.get((i, "wide")) or raws.get((i, "close")) or comps[i][0]
-            for i in range(n + 1)
-        ]
-        for segment_data in segs:
-            segment_data["title"] = f"{show['hi']} | एपिसोड {EP_NO}"
-        try:
-            vertical.render_episode(segs, vertical_images, tmp, vertical_path, music, t0, main_emo)
-        except Exception as ex:
-            vertical_error = f"{type(ex).__name__}: {ex}"
-            print("   vertical render failed:", vertical_error[:300])
-
     print("6/7 thumbnail + metadata")
     thumb = name + ".jpg"
     thumbnail_prompt = (
-        "Create a dramatic, polished 16:9 YouTube recap thumbnail illustration. "
+        "Create a dramatic, polished 16:9 recap-video cover illustration. "
         f"Episode moment: {scenes[hook_i].get('image_prompt', '')}. "
         f"Emotional hook: {data.get('hook', '')}. "
         "Use expressive original fictional faces, strong separation between foreground and background, "
@@ -215,39 +182,9 @@ try:
     json.dump({"title": title, "description": desc, "tags": tags, "source": ep["url"], "seconds": round(t0)}, open(name + ".json", "w"), ensure_ascii=False, indent=2)
     print("   title:", title, "|", len(tags), "tags")
 
-    print("7/7 upload")
-    yt_id = known_yt_id
-    if do_upload:
-        if yt_previously_published and not yt_id:
-            print("   YouTube already succeeded for this episode; skipping duplicate upload")
-        elif not yt_id:
-            # Check again in case another worker finished while this episode was rendering.
-            dup_yt = youtube.already_uploaded(show, EP_NO, source_vid=ep["id"])
-            if dup_yt:
-                yt_id = dup_yt
-                yt_previously_published = True
-                publishing_state.update(KEY, ep["id"], "youtube", "success", episode=SOURCE_EP_NO, media_id=dup_yt)
-                print(f"   duplicate prevented right before YouTube upload ({dup_yt})")
-            else:
-                slot = None
-                if not publish_now:
-                    now = dt.datetime.now(dt.timezone.utc)
-                    # Search next 3 days within a 30-hour window so midnight runs still find the show's slot.
-                    for d in range(3):
-                        day = (now.astimezone(IST) + dt.timedelta(days=d)).date(); h, m = show["slot"]
-                        t = dt.datetime(day.year, day.month, day.day, h, m, tzinfo=IST).astimezone(dt.timezone.utc)
-                        if now + dt.timedelta(minutes=10) < t < now + dt.timedelta(hours=30):
-                            slot = t; break
-                print("   mode:", "publish now" if not slot else f"scheduled for {slot.astimezone(IST).strftime('%Y-%m-%d %I:%M %p IST')} ({slot.strftime('%H:%M UTC')})")
-                yt_id = youtube.upload_video(name + ".mp4", title, desc, tags, slot, thumb)
-                yt_previously_published = True
-                publishing_state.update(KEY, ep["id"], "youtube", "success", episode=SOURCE_EP_NO, media_id=yt_id)
-        feed.mark_done(KEY, ep["id"], episode_no=SOURCE_EP_NO, target_ep=EP_NO, yt_id=yt_id)
-    else:
-        print("   YouTube upload skipped")
-
+    print("7/7 Facebook publishing")
     social_issues = []
-    if publish_requested:
+    if do_publish_facebook:
         replacements = {
             "{title}": title,
             "{description}": desc,
@@ -274,48 +211,28 @@ try:
             print(f"   {issue}")
             return False
 
-        if S.FACEBOOK_ENABLED:
-            if platform_needs_publish("facebook"):
-                try:
-                    fb_id = facebook.publish_video(
-                        name + ".mp4",
-                        title=title,
-                        description=platform_caption("FACEBOOK_DESCRIPTION", desc),
-                    )
-                    publishing_state.update(KEY, ep["id"], "facebook", "success", episode=SOURCE_EP_NO, media_id=fb_id)
-                    print(f"   Facebook publishing succeeded: {fb_id}")
-                except Exception as ex:
-                    status = "uncertain" if getattr(ex, "uncertain", False) else "failed"
-                    publishing_state.update(KEY, ep["id"], "facebook", status, episode=SOURCE_EP_NO, error=str(ex))
-                    social_issues.append(f"facebook {status}: {str(ex)[:200]}")
-                    print(f"   Facebook publishing {status}: {type(ex).__name__}: {str(ex)[:300]}")
+        if platform_needs_publish("facebook"):
+            try:
+                fb_id = facebook.publish_video(
+                    name + ".mp4",
+                    title=title,
+                    description=platform_caption("FACEBOOK_DESCRIPTION", desc),
+                )
+                publishing_state.update(KEY, ep["id"], "facebook", "success", episode=SOURCE_EP_NO, media_id=fb_id)
+                feed.mark_done(KEY, ep["id"], episode_no=SOURCE_EP_NO, target_ep=EP_NO)
+                print(f"   Facebook publishing succeeded: {fb_id}")
+            except Exception as ex:
+                status = "uncertain" if getattr(ex, "uncertain", False) else "failed"
+                publishing_state.update(KEY, ep["id"], "facebook", status, episode=SOURCE_EP_NO, error=str(ex))
+                social_issues.append(f"facebook {status}: {str(ex)[:200]}")
+                print(f"   Facebook publishing {status}: {type(ex).__name__}: {str(ex)[:300]}")
 
-        if S.INSTAGRAM_ENABLED:
-            if platform_needs_publish("instagram"):
-                try:
-                    if vertical_error:
-                        raise RuntimeError("Vertical render failed: " + vertical_error)
-                    caption = platform_caption(
-                        "INSTAGRAM_CAPTION",
-                        f"{title}\n\n{data.get('hook') or ''}\n\n{meta.hashtag(show['en'])} #HindiSerial #SerialRecap",
-                    )
-                    ig_id = instagram.publish_reel(vertical_path, caption=caption)
-                    publishing_state.update(KEY, ep["id"], "instagram", "success", episode=SOURCE_EP_NO, media_id=ig_id)
-                    print(f"   Instagram Reels publishing succeeded: {ig_id}")
-                except Exception as ex:
-                    status = "uncertain" if getattr(ex, "uncertain", False) else "failed"
-                    publishing_state.update(KEY, ep["id"], "instagram", status, episode=SOURCE_EP_NO, error=str(ex))
-                    social_issues.append(f"instagram {status}: {str(ex)[:200]}")
-                    print(f"   Instagram publishing {status}: {type(ex).__name__}: {str(ex)[:300]}")
-
-    if not do_upload and not (publish_requested and social_platforms):
+    if not do_publish_facebook:
         feed.record_status(KEY, "rendered_no_upload", vid=ep["id"], episode=SOURCE_EP_NO, target_ep=EP_NO, log_tail=_LOG_BUF.getvalue())
-    elif not do_upload and publish_requested and social_platforms:
-        feed.mark_done(KEY, ep["id"], episode_no=SOURCE_EP_NO, target_ep=EP_NO)
     if social_issues:
         feed.record_status(
             KEY, "partial_success", vid=ep["id"], episode=SOURCE_EP_NO, target_ep=EP_NO,
-            yt_id=yt_id, error="; ".join(social_issues), log_tail=_LOG_BUF.getvalue(),
+            error="; ".join(social_issues), log_tail=_LOG_BUF.getvalue(),
         )
     print("done", name)
 

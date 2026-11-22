@@ -9,30 +9,29 @@
  * HOW TO SET UP (Takes 2 minutes, 100% Free):
  * 1. Go to https://script.google.com -> click "New Project".
  * 2. Paste this entire file into `Code.gs`.
- * 3. Fill in `GITHUB_OWNER`, `GITHUB_REPO`, and `GITHUB_PAT` (a GitHub Personal Access Token with `repo` and `workflow` scope).
+ * 3. In Project Settings > Script properties, add GITHUB_PAT with Actions read/write access.
  * 4. In the top toolbar, select `setupTriggers` from the function dropdown and click "Run" once.
  *    - It will automatically create:
- *      a) A 12:00 AM IST midnight trigger (`triggerNightly12AM`) to start all 9 shows.
+ *      a) A near-midnight IST trigger (`triggerNightly12AM`) to start all 9 shows.
  *      b) A 2-hour watchdog trigger (`watchdogCheckAndRerun`) that reads back GitHub workflow run status & job logs
  *         and automatically re-runs any failed show job.
  */
 
-const GITHUB_OWNER = "YOUR_GITHUB_USERNAME";
-const GITHUB_REPO  = "serial-recap-bot";
-const GITHUB_PAT   = "YOUR_GITHUB_PAT_TOKEN";
+const GITHUB_OWNER = "pandeyk318-lang";
+const GITHUB_REPO  = "serial-recap-bot-facebook";
 const WORKFLOW_FILE = "recap.yml";
 const BRANCH        = "main";
 const SHOW_KEYS     = ["kaisi", "bhabhi", "sohni", "rimjhim", "mannsundar", "atisundar", "patibrahma", "ishq", "saanche"];
 
 /**
- * Run this function ONCE in Google Apps Script editor to install the exact 12:00 AM IST trigger
+ * Run this function ONCE in Google Apps Script editor to install the near-midnight IST trigger
  * plus the automatic log-checking watchdog trigger.
  */
 function setupTriggers() {
   // Remove any old duplicate triggers first
   ScriptApp.getProjectTriggers().forEach(t => ScriptApp.deleteTrigger(t));
 
-  // 1. Exact 12:00 AM IST (Midnight) Nightly Trigger
+  // 1. Nightly trigger near 12:00 AM IST
   ScriptApp.newTrigger("triggerNightly12AM")
     .timeBased()
     .atHour(0)
@@ -51,7 +50,7 @@ function setupTriggers() {
 }
 
 /**
- * Fires at 12:00 AM IST every night to generate & schedule all 9 videos, including Saanche at 12:30 PM IST.
+ * Fires near 12:00 AM IST every night to generate and publish all nine Facebook Page videos.
  */
 function triggerNightly12AM() {
   dispatchWorkflow("all");
@@ -131,8 +130,7 @@ function dispatchWorkflow(onlyShow) {
       only_show: onlyShow,
       video_id: "",
       test_mode: "false",
-      upload: "true",
-      publish_now: "false"
+      upload: "true"
     }
   };
   const res = UrlFetchApp.fetch(url, {
@@ -142,12 +140,22 @@ function dispatchWorkflow(onlyShow) {
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
+  if (res.getResponseCode() !== 204) {
+    throw new Error(
+      "Workflow dispatch failed (HTTP " + res.getResponseCode() +
+      "): " + res.getContentText().slice(0, 500),
+    );
+  }
   Logger.log(`Dispatched workflow (only_show=${onlyShow}): HTTP ${res.getResponseCode()}`);
 }
 
 function ghHeaders() {
+  const token = PropertiesService.getScriptProperties().getProperty("GITHUB_PAT");
+  if (!token) {
+    throw new Error("Set GITHUB_PAT in Apps Script Project Settings > Script properties.");
+  }
   return {
-    "Authorization": "Bearer " + GITHUB_PAT,
+    "Authorization": "Bearer " + token,
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28"
   };
