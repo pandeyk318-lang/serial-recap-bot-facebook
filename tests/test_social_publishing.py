@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -53,6 +54,15 @@ class PublishingStateTests(unittest.TestCase):
 
 
 class FacebookPublisherTests(unittest.TestCase):
+    def test_publishing_requires_only_the_page_id_and_page_token(self):
+        with mock.patch.dict(os.environ, {
+            "FACEBOOK_PAGE_ID": "page-1",
+            "FACEBOOK_PAGE_ACCESS_TOKEN": "page-token",
+        }, clear=True):
+            self.assertTrue(facebook.configured())
+        with mock.patch.dict(os.environ, {"FACEBOOK_PAGE_ID": "page-1"}, clear=True):
+            self.assertFalse(facebook.configured())
+
     def test_page_token_only_resumable_upload_publishes_to_configured_page(self):
         with tempfile.TemporaryDirectory() as folder:
             video_path = Path(folder) / "landscape.mp4"

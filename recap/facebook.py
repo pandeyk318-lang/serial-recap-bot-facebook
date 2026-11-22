@@ -16,6 +16,13 @@ class FacebookPublishError(RuntimeError):
         self.status_code = status_code
 
 
+def configured():
+    return bool(
+        os.getenv("FACEBOOK_PAGE_ID", "").strip()
+        and os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "").strip()
+    )
+
+
 def _message(response, secrets):
     try:
         body = response.json()

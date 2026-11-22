@@ -8,7 +8,6 @@ CHANNEL_ID = "UCNzmmbXIbMzlqE8nD1PBXfg"          # Dangal TV official channel
 FEED = f"https://www.youtube.com/feeds/videos.xml?channel_id={CHANNEL_ID}"
 W, H, FPS = 1920, 1080, 24
 META_GRAPH_API_VERSION = os.getenv("META_GRAPH_API_VERSION") or "v26.0"
-FACEBOOK_ENABLED = env_bool("FACEBOOK_ENABLED")
 VOICE = os.getenv("SERIAL_VOICE") or "hi-IN-SwaraNeural"
 CHANNEL_NAME = os.getenv("SERIAL_CHANNEL_NAME") or "सीरियल की कहानी"
 WPS = 2.3

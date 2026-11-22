@@ -31,11 +31,10 @@ Facebook posts publish when the workflow runs; they are not scheduled to each sh
 
 In the repository, open **Settings → Secrets and variables → Actions**.
 
-Add these **repository variables**:
+Optional repository variables:
 
 | Variable | Value |
 | --- | --- |
-| `FACEBOOK_ENABLED` | `true` after the test succeeds; leave unset/`false` to prevent publishing |
 | `META_GRAPH_API_VERSION` | Optional; defaults to `v26.0` |
 | `FACEBOOK_DESCRIPTION` | Optional description override; supports `{title}`, `{description}`, `{show}`, `{episode}`, `{hook}` |
 | `HF_FLUX_SPACE` | Optional image-generation fallback override |
@@ -73,9 +72,9 @@ Run the workflow manually for a single show:
 1. Select one value for `only_show`.
 2. Set `test_mode` to `true` and leave `upload` as `false`.
 3. Check the generated output artifact and the job logs.
-4. When ready to publish, set `test_mode` to `false`, `upload` to `true`, and `FACEBOOK_ENABLED` to `true`.
+4. When ready to publish, set `test_mode` to `false`, `upload` to `true`, and ensure both Facebook Page secrets are configured.
 
-The test render still calls the configured generation services but does not publish. A normal run without Facebook publishing enabled renders locally and saves its result without posting.
+The test render still calls the configured generation services but does not publish. Facebook publishing activates automatically when both `FACEBOOK_PAGE_ID` and `FACEBOOK_PAGE_ACCESS_TOKEN` secrets are set. Without either credential, the run renders locally without posting.
 
 ## 4. Set up the daily trigger (Google Apps Script)
 
@@ -86,7 +85,7 @@ The workflow has no GitHub cron. Use the checked-in [`scheduler/google_apps_scri
 3. Run `setupTriggers()` once and authorize the requested permissions.
 4. Check Apps Script **Executions** and GitHub Actions runs after the first trigger.
 
-The script is configured for `pandeyk318-lang/serial-recap-bot-facebook`. The nightly workflow publishes to Facebook as each show finishes; the trigger does not schedule future Facebook publication times. To stop automated runs, delete the Apps Script triggers or set `FACEBOOK_ENABLED` to `false`.
+The script is configured for `pandeyk318-lang/serial-recap-bot-facebook`. The nightly workflow publishes to Facebook as each show finishes; the trigger does not schedule future Facebook publication times. To stop automated runs, delete the Apps Script triggers or dispatch with `upload` disabled.
 
 ## Local setup
 

@@ -18,7 +18,7 @@ KEY = os.environ["SHOW_KEY"]; show = S.SHOWS[KEY]
 TEST = os.getenv("TEST_MODE", "").lower() == "true"
 VIDEO_ID = os.getenv("VIDEO_ID", "").strip()
 publish_requested = (not TEST) and os.getenv("DO_UPLOAD", "true").lower() != "false"
-do_publish_facebook = publish_requested and S.FACEBOOK_ENABLED
+do_publish_facebook = publish_requested and facebook.configured()
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 tmp = os.path.join(S.BASE, f"tmp_{KEY}"); out_dir = os.path.join(S.BASE, "output"); os.makedirs(tmp, exist_ok=True); os.makedirs(out_dir, exist_ok=True)
 

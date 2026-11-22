@@ -23,7 +23,7 @@ on:
         type: boolean
         default: false
       upload:
-        description: "Allow Facebook publishing (requires FACEBOOK_ENABLED=true and configured Meta credentials)"
+        description: "Allow Facebook publishing (requires Facebook Page ID and Page access token secrets)"
         type: boolean
         default: true
 
@@ -83,7 +83,6 @@ jobs:
           TEST_MODE: ${{ github.event_name == 'repository_dispatch' && 'false' || inputs.test_mode }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           HF_FLUX_SPACE: ${{ vars.HF_FLUX_SPACE || 'https://black-forest-labs-flux-1-schnell.hf.space' }}
-          FACEBOOK_ENABLED: ${{ vars.FACEBOOK_ENABLED || 'false' }}
           FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
           FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
           META_GRAPH_API_VERSION: ${{ vars.META_GRAPH_API_VERSION || 'v26.0' }}

@@ -5,6 +5,7 @@ except ImportError:
     feedparser = None
 import config as S
 import publishing_state
+import facebook
 UA = {"User-Agent": "Mozilla/5.0 (compatible; SerialRecapBot/1.0)"}
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 
@@ -140,7 +141,7 @@ def by_id(video_id):
 
 def find_pending_social(key):
     """Return the newest episode whose enabled social destination had a definite failed attempt."""
-    if not S.FACEBOOK_ENABLED:
+    if not facebook.configured():
         return None
     video_id = publishing_state.failed_platforms(key, ["facebook"])
     if not video_id:
